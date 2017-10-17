@@ -3,8 +3,9 @@ use v6;
 use LWP::Simple;
 use HTML::Parser::XML;
 use XML::Document;
+use Data::Dump;
 
-sub MAIN(:$domain="https://perl6.org", :$concurrent=20) {
+sub MAIN(:$domain="https://golang.org", :$concurrent=20) {
    say "Crawling: $domain";
    my $page = LWP::Simple.get($domain);
    my $p = HTML::Parser::XML.new;
@@ -16,16 +17,18 @@ sub MAIN(:$domain="https://perl6.org", :$concurrent=20) {
 	  next unless $anchor<href>.defined;
 	  my $href =  $anchor<href>.Str;
 
+	  # REPL good for "foo".^name (Str) & "foo".^methods
+
 	  # Convert rel to abs urls
-	  if $href.starts-with('/') {
+	  if $href ~~ m/^ '/' / {
 		  $href = $domain ~ $href;
 	  }
 
       # Put URL in 'visited' hash if it's local
-	  if $href.starts-with($domain) {
+	  if $href ~~ m/^ $domain / {
 		  %visited{$href} = 1;
 	  }
   }
-   say %visited.keys;
+   dd %visited;
 }
 
