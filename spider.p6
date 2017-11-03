@@ -26,6 +26,12 @@ sub MAIN(:$domain="https://perl6.org", :$concurrent=20) {
 		  %visited{$href} = 1;
 	  }
   }
-   say %visited.keys;
+	# say %visited.keys;
+	crawl(%visited.keys);
 }
 
+sub crawl(@links) {
+	for @links -> $link {
+		say $link;
+	}
+}
