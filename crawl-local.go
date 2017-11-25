@@ -14,14 +14,13 @@ import (
 
 type PgResults struct {
 	Link     string
-	Assets   []string
 	Children []string
 }
 
 // Package globals for ease in changing program defaults.
 // These would be in a config file, data store etc in a 'real' program.
 const (
-	DEFAULT_DOMAIN string = "https://golang.org"
+	DEFAULT_DOMAIN string = "http://localhost:20000"
 	MAX_CONCURRENT int    = 20
 )
 
@@ -71,9 +70,7 @@ func main() {
 				go func(link string) {
 					defer wg.Done()
 					tokens <- 1 // Acquire a token
-					// urls: all urls found in page
-					// assets: all assets found in current page
-					urls, assets := crawl(link, start_domain)
+					urls := crawl(link, start_domain)
 
 					// Get URLs from this site
 					var next_batch []string
@@ -85,11 +82,9 @@ func main() {
 					worklist <- next_batch
 
 					// Gather results
-					// all_urls: the links found in current page
 					all_urls := getMapKeys(urls)
-					// page_assets: assets found in current page
-					page_assets := getMapKeys(assets)
-					log.Printf("%v", PgResults{Link: link, Assets: page_assets, Children: all_urls})
+					//log.Printf("%v", PgResults{Link: link, Children: all_urls})
+					log.Println("Link ", link, "# children ", len(all_urls))
 					<-tokens // Release the token
 
 				}(link)
@@ -107,9 +102,8 @@ func main() {
 // urls map value is a boolean which indicates whether the key url is in the
 // same domain. Urls which are found that are not in the same domain as the
 // start url (start_domain) will not themselves be crawled.
-func crawl(url, start_domain string) (map[string]bool, map[string]bool) {
+func crawl(url, start_domain string) map[string]bool {
 	urls := make(map[string]bool)
-	assets := make(map[string]bool)
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -118,7 +112,7 @@ func crawl(url, start_domain string) (map[string]bool, map[string]bool) {
 	defer resp.Body.Close()
 	// Check response HTTP status
 	if resp.StatusCode != 200 {
-		return nil, nil
+		return nil
 	}
 
 	tokenizer := html.NewTokenizer(resp.Body)
@@ -153,15 +147,13 @@ func crawl(url, start_domain string) (map[string]bool, map[string]bool) {
 					if strings.HasPrefix(new_url, start_domain) {
 						urls[new_url] = true
 					}
-				} else {
-					assets[new_url] = true
 				}
 			} else {
-				//          log.Printf("Token %s didn't have a detectable url/asset value: ignored", token.Data)
+				// log.Printf("Token %s didn't have a detectable url value: ignored", token.Data)
 			}
 		}
 	}
-	return urls, assets
+	return urls
 }
 
 func getAttrVal(token html.Token, name string) string {
@@ -191,7 +183,7 @@ func processUrl(new_url, domain string) string {
 	return processed.String()
 }
 
-// Used to extract, return keys from urls, assets maps
+// Used to extract, return keys from urls maps
 func getMapKeys(res map[string]bool) []string {
 	keys := make([]string, len(res))
 	i := 0

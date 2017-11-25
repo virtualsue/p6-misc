@@ -6,15 +6,17 @@ use XML::Document;
 
 my %visited;
 
-sub MAIN(:$domain="https://perl6.org", :$concurrent=20) {
+sub MAIN(:$domain="http://london.pm.org") {
 	my $t0 = DateTime.now.Instant;
 
 	my $page = LWP::Simple.get($domain);
     my @urls = extract($domain,$page);
 
+	my $c = Channel.new;
 	my @promises;
 	for @urls -> $url {
-		my $p = Promise.start({ &fetch($domain,$url) });
+		say $url;
+		my $p = Promise.start({ &fetch($domain,$url,$c) });
 		@promises.push($p);
 	}
 
@@ -50,13 +52,12 @@ sub extract($domain,$page) {
 
 }
 
-sub fetch($domain,$url) {
+sub fetch($domain, $url, $chan) {
     return if %visited{$url};
-    dd $url;
     my $html = LWP::Simple.get($url);
     %visited{$url}++;
     my @urls = extract($domain, $html);
-    # ...
+	$chan.send(@urls);
 }
 
 

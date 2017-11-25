@@ -11,10 +11,12 @@ sub MAIN(:$domain="https://perl6.org", :$concurrent=20) {
     my @promises;
     for @urls -> $url {
 	    my $p = Promise.start({ &crawl($url) });
+		say $url;
         @promises.push($p);
     }
     my $finished = Promise.allof(@promises);
     await $finished;
+	say "Finished status is " ~ $finished.status;
     for @promises -> $p {
         my @urls = extract_links($domain, $p.result);
 		say @urls;
