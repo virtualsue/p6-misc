@@ -61,6 +61,7 @@ sub crawl($domain,$uri) {
     for @anchors -> $anchor {
         next unless $anchor<href>.defined;
         my $href =  $anchor<href>.Str;
+		say $href;
 
         # Convert rel to abs urls
         if $href.starts-with('/') {

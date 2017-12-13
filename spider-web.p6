@@ -4,58 +4,48 @@ use HTML::Parser::XML;
 use XML::Document;
 use HTTP::UserAgent;
 
-my %url_seen;
+sub MAIN(:$domain="http://localhost:20000") {
 
-our $ua =  HTTP::UserAgent.new;
-my $t0 = DateTime.now.Instant;
-
-my @promises;
-
-sub MAIN(:$domain="http://london.pm.org") {
-
+	my $ua =  HTTP::UserAgent.new;
+    my %url_seen;
     my @urls=($domain);
 
     loop {
-
-        # Create promises for each URL in array 
+		my @promises;
         while ( @urls ) {
             my $url = @urls.shift;
-            my $p = Promise.start({crawl($domain,$url)});
+            my $p = Promise.start({crawl($ua, $domain, $url)});
             @promises.push($p);
         }
-
-        # Process promises, add URLs to array if found
-        for @promises -> $pw {
-            next unless $pw.status ~~ Kept;
-			my @results =  $pw.result; 
-            # Delete old promises so we don't process again
-            @promises.shift if @results;
-            for @results {
-				say $_;
-                @urls.push($_) unless %url_seen{$_};
-                %url_seen{$_}++; 
-            }
+		await Promise.allof(@promises);
+        for @promises.kv -> $index, $p {
+            if $p.status ~~ Kept {
+				my @results =  $p.result;
+				dd @results;
+                for @results {
+					unless %url_seen{$_} {
+	                    @urls.push($_); 
+						%url_seen{$_}++;
+					}
+                }
+		    }
         }
-        # Terminate if no more URLs to crawl  and all promises completed
-        if @urls.elems == 0 && Promise.allof(@promises) {
+        # Terminate if no more URLs to crawl
+        if @urls.elems == 0 {
             last;
         }
     }
-
-    say DateTime.now.Instant-$t0 ~ " sec(s)";
 }
 
-sub get($uri) {
-    my $response = $ua.get($uri);
-    return $response.content;
-}
 
-sub crawl($domain,$uri) {
-    dd $uri;
-    my $page = get($uri);
+#TODO strip anchor stuff
+sub crawl($ua, $domain, $uri) {
+	say $uri;
+    my $page = $ua.get($uri);
+	say $page;
     my $p = HTML::Parser::XML.new;
-    my XML::Document $doc = $p.parse($page);
-    # URLs to crawl 
+    my XML::Document $doc = $p.parse($page.content);
+    # URLs to crawl
     my %todo;
     my @anchors = $doc.elements(:TAG<a>, :RECURSE);
     for @anchors -> $anchor {
@@ -77,4 +67,3 @@ sub crawl($domain,$uri) {
     return @urls;
 
 }
-
